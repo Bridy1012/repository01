@@ -1,6 +1,9 @@
 package com.example.attendance.controller;
 
 import com.example.attendance.Result;
+import com.example.attendance.Student;
+import com.example.attendance.service.StudentService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -8,7 +11,22 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@RequestMapping("/student")
 public class StudentController {
+    // 注入Service层依赖
+    @Autowired
+    private StudentService studentService;
+    // 新增学生接口（仅负责接收请求和返回结果）
+    @PostMapping("/add")
+    public Result<String> addStudent(@RequestBody Student student) {
+        try {
+            studentService.addStudent(student);
+            return Result.success("学生新增成功！");
+        } catch (IllegalArgumentException e) {
+            // 捕获 Service 层的校验异常，返回错误结果
+            return Result.error(400, e.getMessage());
+        }
+    }
 
     // 学生数据
     private static final Map<String, String> student = new HashMap<>();
