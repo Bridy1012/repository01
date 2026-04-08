@@ -1,0 +1,18 @@
+# 数据源核心配置
+spring:
+  datasource:
+    # 数据库连接地址（对应你已创建的attendance_system库）
+    url: jdbc:mysql://localhost:3306/attendance_system?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8&useSSL=false
+    # XAMPP默认MySQL用户名root，密码为空
+    username: root
+    password: ""
+    # MySQL 8.0+ 驱动类（兼容MariaDB）
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  # JdbcTemplate 超时配置（可选，Spring Boot自动配置，也可手动指定）
+  jdbc:
+    template:
+      query-timeout: 3s
+
+# 服务器端口（默认8080，无需修改）
+server:
+  port: 8080
