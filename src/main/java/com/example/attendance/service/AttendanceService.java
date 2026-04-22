@@ -14,12 +14,12 @@ public interface AttendanceService {
     List<Attendance> getAllAttendances();
     void deleteAttendance(Long id);
 
-    // 新增：分页+排序+多条件查询
+    // 分页+排序+多条件查询
     Page<Attendance> pageAttendances(
-            String studentId,       // 学号筛选（可选）
-            LocalDateTime startDate,// 考勤日期起始（可选）
-            LocalDateTime endDate,  // 考勤日期结束（可选）
-            String status,          // 考勤状态（可选）
+            String studentId,       // 学号筛选
+            LocalDateTime startDate,// 考勤日期起始
+            LocalDateTime endDate,  // 考勤日期结束
+            String status,          // 考勤状态
             Pageable pageable       // 分页+排序参数
     );
 }

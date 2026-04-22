@@ -41,29 +41,29 @@ public class AttendanceServiceImpl implements AttendanceService {
         attendanceRepository.deleteById(id);
     }
 
-    // 核心：分页+多条件查询实现
+    // 分页+多条件查询实现
     @Override
     public Page<Attendance> pageAttendances(String studentId, LocalDateTime startDate, LocalDateTime endDate, String status, Pageable pageable) {
         // 构建动态查询条件（Specification）
         Specification<Attendance> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // 条件1：按学号筛选（可选）
+            // 按学号筛选
             if (studentId != null && !studentId.isBlank()) {
                 predicates.add(cb.equal(root.get("student").get("studentId"), studentId));
             }
 
-            // 条件2：按考勤日期起始筛选（可选）
+            // 按考勤日期起始筛选
             if (startDate != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("attendanceDate"), startDate));
             }
 
-            // 条件3：按考勤日期结束筛选（可选）
+            // 按考勤日期结束筛选
             if (endDate != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("attendanceDate"), endDate));
             }
 
-            // 条件4：按考勤状态筛选（可选）
+            // 按考勤状态筛选
             if (status != null && !status.isBlank()) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
