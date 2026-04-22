@@ -10,11 +10,9 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.util.List;
 
-// 数据访问层注解
 @Repository
 public class UserDao {
 
-    // 自动注入JdbcTemplate
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
