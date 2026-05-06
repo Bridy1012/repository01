@@ -30,6 +30,17 @@
         <java.version>17</java.version>
     </properties>
     <dependencies>
+        <!-- Thymeleaf模板引擎 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!-- Spring Security 核心依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
 
         <!-- Spring Data JPA 核心依赖（替换原JdbcTemplate，实现ORM映射） -->
         <dependency>

@@ -1,46 +1,45 @@
 package com.example.attendance.service.impl;
 
 import com.example.attendance.User;
-import com.example.attendance.dao.UserDao;
+import com.example.attendance.dto.RegisterRequest;
+import com.example.attendance.repository.UserRepository;
 import com.example.attendance.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class UserServiceImpl implements UserService {
 
-    // 注入Dao层
     @Autowired
-    private UserDao userDao;
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
-    public int addUser(User user) {
-        // 业务校验：用户名不能为空
-        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
-            throw new IllegalArgumentException("用户名不能为空！");
+    public User register(RegisterRequest request) {
+        // 你之前的注册逻辑不变
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new RuntimeException("用户名已存在，请换一个");
         }
-        return userDao.addUser(user);
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPassword(encodedPassword);
+        user.setRole("student");
+        user.setName(request.getUsername());
+        return userRepository.save(user);
     }
 
+    // 实现登录验证：用BCrypt验证密码
     @Override
-    public User getUserById(Integer userId) {
-        return userDao.getUserById(userId);
-    }
-
-    @Override
-    public List<User> getAllUsers() {
-        return userDao.getAllUsers();
-    }
-
-    @Override
-    public int updateUser(User user) {
-        return userDao.updateUser(user);
-    }
-
-    @Override
-    public int deleteUser(Integer userId) {
-        return userDao.deleteUser(userId);
+    public boolean authenticate(String username, String password) {
+        User user = userRepository.findByUsername(username);
+        if (user == null) {
+            return false; // 用户名不存在
+        }
+        // 用加密器验证明文密码和数据库密文是否匹配
+        return passwordEncoder.matches(password, user.getPassword());
     }
 }

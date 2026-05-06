@@ -1,17 +1,10 @@
 package com.example.attendance.service;
 
 import com.example.attendance.User;
-import java.util.List;
+import com.example.attendance.dto.RegisterRequest;
 
 public interface UserService {
-    // 新增用户
-    int addUser(User user);
-    // 根据ID查询
-    User getUserById(Integer userId);
-    // 查询所有
-    List<User> getAllUsers();
-    // 更新用户
-    int updateUser(User user);
-    // 删除用户
-    int deleteUser(Integer userId);
+    User register(RegisterRequest request);
+    // 新增：登录验证方法
+    boolean authenticate(String username, String password);
 }

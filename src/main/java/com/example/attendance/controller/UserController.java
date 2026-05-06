@@ -2,61 +2,51 @@ package com.example.attendance.controller;
 
 import com.example.attendance.Result;
 import com.example.attendance.User;
+import com.example.attendance.dto.LoginRequest;
+import com.example.attendance.dto.RegisterRequest;
 import com.example.attendance.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
-// REST接口控制器，根路径 /user
 @RestController
 @RequestMapping("/user")
 public class UserController {
 
-    // 注入UserService业务层
     @Autowired
     private UserService userService;
 
-    // 1. 新增用户（POST请求）
-    @PostMapping("/add")
-    public Result<Integer> addUser(@RequestBody User user) {
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    // 注册接口
+    @PostMapping("/register")
+    public Result<User> register(@RequestBody RegisterRequest request) {
         try {
-            int userId = userService.addUser(user);
-            return Result.success(userId);
-        } catch (IllegalArgumentException e) {
+            User user = userService.register(request);
+            // 不返回密码给前端
+            user.setPassword(null);
+            return Result.success(user);
+        } catch (RuntimeException e) {
             return Result.error(400, e.getMessage());
         }
     }
 
-    // 2. 根据ID查询用户（GET请求，路径传参）
-    @GetMapping("/{id}")
-    public Result<User> getUserById(@PathVariable Integer id) {
-        User user = userService.getUserById(id);
-        return Result.success(user);
-    }
-
-    // 3. 查询所有用户（GET请求）
-    @GetMapping("/list")
-    public Result<List<User>> getAllUsers() {
-        List<User> userList = userService.getAllUsers();
-        return Result.success(userList);
-    }
-
-    // 4. 更新用户（PUT请求）
-    @PutMapping("/update")
-    public Result<String> updateUser(@RequestBody User user) {
+    // 登录接口
+    @PostMapping("/login")
+    public Result<String> login(@RequestBody LoginRequest request) {
         try {
-            userService.updateUser(user);
-            return Result.success("用户更新成功！");
-        } catch (Exception e) {
-            return Result.error(400, "用户更新失败：" + e.getMessage());
+            Authentication authRequest = new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword());
+            Authentication authResult = authenticationManager.authenticate(authRequest);
+            return Result.success("登录成功，用户名：" + authResult.getName());
+        } catch (AuthenticationException e) {
+            return Result.error(401, "用户名或密码错误");
         }
-    }
-
-    // 5. 删除用户（DELETE请求，路径传参）
-    @DeleteMapping("/{id}")
-    public Result<String> deleteUser(@PathVariable Integer id) {
-        userService.deleteUser(id);
-        return Result.success("用户删除成功！");
     }
 }
