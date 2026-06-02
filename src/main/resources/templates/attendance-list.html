@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>考勤记录</title>
+    <style>
+        .filter-bar { margin: 20px 0; }
+        select, button { padding: 6px; margin: 0 5px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        .btn-export { background: #4CAF50; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+<h2>考勤记录</h2>
+
+<div class="filter-bar">
+    <form method="get" th:action="@{/attendance/list}" style="display: inline;">
+        <!-- 课程筛选下拉 -->
+        <select name="courseName">
+            <option value="">全部课程</option>
+            <option th:each="course : ${courses}" th:value="${course.courseName}" th:text="${course.courseName}" th:selected="${param.courseName == course.courseName}"></option>
+        </select>
+
+        <button type="submit" name="timeType" value="today">今天</button>
+        <button type="submit" name="timeType" value="week">本周</button>
+        <button type="submit" name="timeType" value="month">本月</button>
+        <button type="submit">重置筛选</button>
+    </form>
+
+    <a th:href="@{/attendance/export(courseName=${param.courseName}, timeType=${param.timeType})}"
+       class="btn-export" style="margin-left: 10px;">导出Excel</a>
+</div>
+
+<table>
+    <thead>
+    <tr><th>学号</th><th>姓名</th><th>课程</th><th>打卡时间</th><th>早退时间</th><th>状态</th><th>备注</th></tr>
+    </thead>
+    <tbody>
+    <tr th:each="record : ${attendanceList}">
+        <td th:text="${record.studentId}"></td>
+        <td th:text="${record.studentName}"></td>
+        <td th:text="${record.courseName}"></td>
+        <td th:text="${#temporals.format(record.checkInTime, 'yyyy-MM-dd HH:mm')}"></td>
+        <td th:text="${record.checkOutTime != null ? #temporals.format(record.checkOutTime, 'yyyy-MM-dd HH:mm') : '无'}"></td>
+        <td th:text="${record.status}"></td>
+        <td th:text="${record.remark}"></td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

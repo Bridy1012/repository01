@@ -1,77 +1,176 @@
 package com.example.attendance.controller;
 
-import com.example.attendance.Attendance;
-import com.example.attendance.Result;
+import com.example.attendance.AttendanceRecord;
+import com.example.attendance.Course;
+import com.example.attendance.Student;
+import com.example.attendance.User;
+import com.example.attendance.repository.StudentRepository;
+import com.example.attendance.repository.UserRepository;
 import com.example.attendance.service.AttendanceService;
+import com.example.attendance.service.CourseService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
+import java.security.Principal;
 import java.util.List;
-import java.util.Optional;
 
-@RestController
-@RequestMapping("/attendance")
+@Controller
 public class AttendanceController {
 
     @Autowired
     private AttendanceService attendanceService;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private StudentRepository studentRepository;
+    @Autowired
+    private CourseService courseService;
 
-    // 原有CRUD接口不变
-    @PostMapping("/save")
-    public Result<Attendance> saveAttendance(@RequestBody Attendance attendance) {
-        Attendance save = attendanceService.saveAttendance(attendance);
-        return Result.success(save);
+    @GetMapping("/attendance")
+    public String toAttendancePage(Model model, Principal principal) {
+        String studentId = principal.getName();
+        Student student = studentRepository.findByStudentId(studentId);
+        if (student == null) {
+            student = new Student();
+            student.setStudentId(studentId);
+            student.setName("学生" + studentId);
+            student.setAttendanceCount(0);
+            student.setClassName("未分班");   // 设置默认班级
+            studentRepository.save(student);
+        }
+        List<Course> courses = courseService.findAll();
+        model.addAttribute("student", student);
+        model.addAttribute("courses", courses);
+        return "attendance";
     }
 
-    @GetMapping("/{id}")
-    public Result<Attendance> getAttendanceById(@PathVariable Long id) {
-        Optional<Attendance> attendance = attendanceService.getAttendanceById(id);
-        return attendance.map(Result::success).orElseGet(() -> Result.error(404, "考勤记录不存在"));
+    @PostMapping("/attendance/checkin")
+    public String checkIn(
+            @RequestParam Long courseId,
+            @RequestParam String courseName,
+            @RequestParam(required = false) String remark,
+            Principal principal,
+            Model model) {
+        try {
+            String studentId = principal.getName();
+            Student student = studentRepository.findByStudentId(studentId);
+            if (student == null) {
+                throw new RuntimeException("学生信息不存在，请重新注册");
+            }
+            AttendanceRecord record = attendanceService.checkIn(
+                    studentId,
+                    student.getName(),
+                    courseId,
+                    courseName,
+                    remark
+            );
+            model.addAttribute("msg", "✅ 打卡成功：" + record.getStatus());
+            model.addAttribute("type", "success");
+        } catch (Exception e) {
+            model.addAttribute("msg", "❌ " + e.getMessage());
+            model.addAttribute("type", "error");
+        }
+        model.addAttribute("student", studentRepository.findByStudentId(principal.getName()));
+        model.addAttribute("courses", courseService.findAll());
+        return "attendance";
     }
 
-    @GetMapping("/list")
-    public Result<List<Attendance>> getAllAttendances() {
-        List<Attendance> list = attendanceService.getAllAttendances();
-        return Result.success(list);
+    @PostMapping("/attendance/checkout")
+    public String checkOut(
+            @RequestParam String courseName,
+            Principal principal,
+            Model model) {
+        try {
+            String studentId = principal.getName();
+            attendanceService.checkOut(studentId, courseName);
+            model.addAttribute("msg", "✅ 早退提交成功！");
+            model.addAttribute("type", "success");
+        } catch (Exception e) {
+            model.addAttribute("msg", "❌ " + e.getMessage());
+            model.addAttribute("type", "error");
+        }
+        model.addAttribute("student", studentRepository.findByStudentId(principal.getName()));
+        model.addAttribute("courses", courseService.findAll());
+        return "attendance";
     }
 
-    @DeleteMapping("/{id}")
-    public Result<String> deleteAttendance(@PathVariable Long id) {
-        attendanceService.deleteAttendance(id);
-        return Result.success("考勤记录删除成功");
+    @GetMapping("/attendance/list")
+    public String attendanceList(
+            @RequestParam(required = false) String courseName,
+            @RequestParam(required = false) String timeType,
+            @RequestParam(required = false) String status,
+            Principal principal,
+            Model model) {
+        List<AttendanceRecord> list;
+        String username = principal.getName();
+        User loginUser = userRepository.findByUsername(username);
+
+        if ("teacher".equals(loginUser.getRole())) {
+            if (courseName != null && !courseName.isEmpty()) {
+                list = attendanceService.findByCourseName(courseName);
+            } else {
+                list = attendanceService.findAllAttendance();
+            }
+        } else {
+            list = attendanceService.quickFilter(username, timeType, status, courseName);
+        }
+
+        model.addAttribute("attendanceList", list);
+        model.addAttribute("courses", courseService.findAll());
+        return "attendance-list";
     }
 
-    // 新增：分页+排序+多条件查询接口
-    @GetMapping("/page")
-    public Result<Page<Attendance>> pageAttendances(
-            // 分页参数（默认第1页，每页10条）
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+    @GetMapping("/attendance/export")
+    public void exportAttendance(
+            @RequestParam(required = false) String courseName,
+            @RequestParam(required = false) String timeType,
+            Principal principal,
+            HttpServletResponse response) throws Exception {
+        String username = principal.getName();
+        User loginUser = userRepository.findByUsername(username);
+        List<AttendanceRecord> list;
 
-            // 排序参数（默认按考勤日期降序）
-            @RequestParam(defaultValue = "attendanceDate") String sortBy,
-            @RequestParam(defaultValue = "desc") String sortDir,
+        if ("teacher".equals(loginUser.getRole())) {
+            if (courseName != null && !courseName.isEmpty()) {
+                list = attendanceService.findByCourseName(courseName);
+            } else {
+                list = attendanceService.findAllAttendance();
+            }
+        } else {
+            list = attendanceService.quickFilter(username, timeType, null, courseName);
+        }
 
-            // 多条件筛选参数（全部可选）
-            @RequestParam(required = false) String studentId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @RequestParam(required = false) String status
-    ) {
-        // 构建排序对象
-        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment;filename=attendance.xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("考勤记录");
 
-        // 构建分页对象（页码从0开始，对应前端的第1页）
-        PageRequest pageable = PageRequest.of(page, size, sort);
+        Row header = sheet.createRow(0);
+        header.createCell(0).setCellValue("学号");
+        header.createCell(1).setCellValue("姓名");
+        header.createCell(2).setCellValue("课程");
+        header.createCell(3).setCellValue("打卡时间");
+        header.createCell(4).setCellValue("早退时间");
+        header.createCell(5).setCellValue("状态");
 
-        // 调用服务层方法
-        Page<Attendance> pageResult = attendanceService.pageAttendances(studentId, startDate, endDate, status, pageable);
+        int rowNum = 1;
+        for (AttendanceRecord r : list) {
+            Row row = sheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(r.getStudentId());
+            row.createCell(1).setCellValue(r.getStudentName());
+            row.createCell(2).setCellValue(r.getCourseName());
+            row.createCell(3).setCellValue(r.getCheckInTime().toString());
+            row.createCell(4).setCellValue(r.getCheckOutTime() == null ? "无" : r.getCheckOutTime().toString());
+            row.createCell(5).setCellValue(r.getStatus());
+        }
 
-        return Result.success(pageResult);
+        workbook.write(response.getOutputStream());
+        workbook.close();
     }
 }

@@ -1,15 +1,25 @@
 package com.example.attendance;
 
-public class AttendanceRecord {
-    private String studentId;
-    private String date;
-    private String status; // 如 "已打卡"
+import jakarta.persistence.*;
+import lombok.Data;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-    // getter 和 setter
-    public String getStudentId() { return studentId; }
-    public void setStudentId(String studentId) { this.studentId = studentId; }
-    public String getDate() { return date; }
-    public void setDate(String date) { this.date = date; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+@Data
+@Entity
+@Table(name = "attendance_record")
+public class AttendanceRecord {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String studentId;
+    private String studentName;
+    private String courseName;
+    private Long courseId;          // 新增：关联课程主键
+    private LocalDateTime checkInTime;
+    private LocalDate checkInDate;
+    private String status;
+    private String remark;
+    private LocalDateTime checkOutTime;
 }

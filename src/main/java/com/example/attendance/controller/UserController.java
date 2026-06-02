@@ -1,52 +1,63 @@
 package com.example.attendance.controller;
 
-import com.example.attendance.Result;
+import com.example.attendance.Student;
 import com.example.attendance.User;
-import com.example.attendance.dto.LoginRequest;
-import com.example.attendance.dto.RegisterRequest;
-import com.example.attendance.service.UserService;
+import com.example.attendance.repository.StudentRepository;
+import com.example.attendance.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-@RestController
-@RequestMapping("/user")
+@Controller
 public class UserController {
 
     @Autowired
-    private UserService userService;
+    private UserRepository userRepository;
 
     @Autowired
-    private AuthenticationManager authenticationManager;
+    private StudentRepository studentRepository;
 
-    // 注册接口
-    @PostMapping("/register")
-    public Result<User> register(@RequestBody RegisterRequest request) {
-        try {
-            User user = userService.register(request);
-            // 不返回密码给前端
-            user.setPassword(null);
-            return Result.success(user);
-        } catch (RuntimeException e) {
-            return Result.error(400, e.getMessage());
-        }
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @GetMapping("/login")
+    public String loginPage() {
+        return "login";
     }
 
-    // 登录接口
-    @PostMapping("/login")
-    public Result<String> login(@RequestBody LoginRequest request) {
+    @GetMapping("/register")
+    public String registerPage() {
+        return "register";
+    }
+
+    @PostMapping("/register")
+    public String register(User user, Model model) {
         try {
-            Authentication authRequest = new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword());
-            Authentication authResult = authenticationManager.authenticate(authRequest);
-            return Result.success("登录成功，用户名：" + authResult.getName());
-        } catch (AuthenticationException e) {
-            return Result.error(401, "用户名或密码错误");
+            if (userRepository.findByUsername(user.getUsername()) != null) {
+                model.addAttribute("msg", "该账号已注册！");
+                return "register";
+            }
+            user.setRole("student");
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            user.setName(user.getUsername());
+            userRepository.save(user);
+
+            Student student = new Student();
+            student.setStudentId(user.getUsername());
+            student.setName("学生" + user.getUsername());
+            student.setAttendanceCount(0);
+            student.setClassName("未分班");   // 设置默认班级
+            studentRepository.save(student);
+
+            model.addAttribute("msg", "注册成功！请登录");
+            return "login";
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("msg", "注册失败：" + e.getMessage());
+            return "register";
         }
     }
 }

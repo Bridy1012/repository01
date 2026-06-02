@@ -1,16 +1,16 @@
 package com.example.attendance.service.impl;
 
-import com.example.attendance.Attendance;
-import com.example.attendance.repository.AttendanceRepository;
+import com.example.attendance.AttendanceRecord;
+import com.example.attendance.Course;
+import com.example.attendance.repository.AttendanceRecordRepository;
 import com.example.attendance.service.AttendanceService;
-import jakarta.persistence.criteria.Predicate;
+import com.example.attendance.service.CourseService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.DayOfWeek;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,61 +18,127 @@ import java.util.Optional;
 public class AttendanceServiceImpl implements AttendanceService {
 
     @Autowired
-    private AttendanceRepository attendanceRepository;
+    private AttendanceRecordRepository attendanceRecordRepository;
 
-    // 原有CRUD实现不变
+    @Autowired
+    private CourseService courseService;
+
     @Override
-    public Attendance saveAttendance(Attendance attendance) {
-        return attendanceRepository.save(attendance);
+    public AttendanceRecord checkIn(String studentId, String studentName, Long courseId, String courseName, String remark) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
+        LocalTime nowTime = now.toLocalTime();
+
+        // 重复打卡判断
+        boolean hasCheckIn = attendanceRecordRepository.existsByStudentIdAndCheckInDateAndCourseName(studentId, today, courseName);
+        if (hasCheckIn) {
+            throw new RuntimeException("❌ 今日该课程已打卡！");
+        }
+
+        // 获取课程信息（根据课程名，或根据 courseId）
+        Course course = courseService.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("❌ 课程不存在，请联系老师！"));
+        // 验证课程名是否匹配（可选）
+        if (!course.getCourseName().equals(courseName)) {
+            throw new RuntimeException("❌ 课程名称不匹配！");
+        }
+
+        LocalTime startTime = course.getStartTime();
+        LocalTime allowStart = startTime.minusMinutes(15);
+        LocalTime allowEnd = startTime.plusMinutes(30);
+
+        if (nowTime.isBefore(allowStart) || nowTime.isAfter(allowEnd)) {
+            throw new RuntimeException("❌ 不在打卡时间内（" + allowStart + " - " + allowEnd + "）！");
+        }
+
+        // 迟到判断：超过上课时间即为迟到
+        String status = nowTime.isAfter(startTime) ? "迟到" : "正常";
+
+        AttendanceRecord record = new AttendanceRecord();
+        record.setStudentId(studentId);
+        record.setStudentName(studentName);
+        record.setCourseId(courseId);
+        record.setCourseName(courseName);
+        record.setCheckInTime(now);
+        record.setCheckInDate(today);
+        record.setStatus(status);
+        record.setRemark(remark);
+
+        return attendanceRecordRepository.save(record);
+    }
+
+    // 以下方法保持不变，但需要确保 findByCourseName 已在 Repository 中定义
+    @Override
+    public List<AttendanceRecord> findByStudentId(String studentId) {
+        return attendanceRecordRepository.findByStudentId(studentId);
     }
 
     @Override
-    public Optional<Attendance> getAttendanceById(Long id) {
-        return attendanceRepository.findById(id);
+    public List<AttendanceRecord> filterAttendance(LocalDate startDate, LocalDate endDate, String status, String courseName) {
+        if (startDate == null) startDate = LocalDate.of(2000, 1, 1);
+        if (endDate == null) endDate = LocalDate.now();
+        if (courseName == null) courseName = "";
+
+        if (status == null || status.trim().isEmpty()) {
+            return attendanceRecordRepository.findByCheckInDateBetweenAndCourseNameContaining(startDate, endDate, courseName);
+        } else {
+            return attendanceRecordRepository.findByCheckInDateBetweenAndStatusAndCourseNameContaining(startDate, endDate, status, courseName);
+        }
     }
 
     @Override
-    public List<Attendance> getAllAttendances() {
-        return attendanceRepository.findAll();
+    public AttendanceRecord checkOut(String studentId, String courseName) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
+
+        AttendanceRecord record = attendanceRecordRepository
+                .findByStudentIdAndCheckInDateAndCourseName(studentId, today, courseName)
+                .orElseThrow(() -> new RuntimeException("❌ 未打卡，无法早退！"));
+
+        if (record.getCheckOutTime() != null) {
+            throw new RuntimeException("❌ 已提交早退！");
+        }
+
+        record.setCheckOutTime(now);
+        record.setStatus("早退");
+        return attendanceRecordRepository.save(record);
     }
 
     @Override
-    public void deleteAttendance(Long id) {
-        attendanceRepository.deleteById(id);
+    public List<AttendanceRecord> quickFilter(String studentId, String type, String status, String courseName) {
+        LocalDate start = null;
+        LocalDate end = LocalDate.now();
+
+        if (type != null) {
+            switch (type) {
+                case "today":
+                    start = LocalDate.now();
+                    break;
+                case "week":
+                    start = LocalDate.now().with(DayOfWeek.MONDAY);
+                    break;
+                case "month":
+                    start = LocalDate.now().withDayOfMonth(1);
+                    break;
+                default:
+                    return filterAttendance(null, null, status, courseName);
+            }
+            return filterAttendance(start, end, status, courseName);
+        } else {
+            return filterAttendance(null, null, status, courseName);
+        }
     }
 
-    // 分页+多条件查询实现
     @Override
-    public Page<Attendance> pageAttendances(String studentId, LocalDateTime startDate, LocalDateTime endDate, String status, Pageable pageable) {
-        // 构建动态查询条件（Specification）
-        Specification<Attendance> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+    public List<AttendanceRecord> findAllAttendance() {
+        return attendanceRecordRepository.findAll();
+    }
 
-            // 按学号筛选
-            if (studentId != null && !studentId.isBlank()) {
-                predicates.add(cb.equal(root.get("student").get("studentId"), studentId));
-            }
-
-            // 按考勤日期起始筛选
-            if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("attendanceDate"), startDate));
-            }
-
-            // 按考勤日期结束筛选
-            if (endDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("attendanceDate"), endDate));
-            }
-
-            // 按考勤状态筛选
-            if (status != null && !status.isBlank()) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
-
-            // 组合所有条件（没有条件则返回null，查询全部）
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        // 带条件+分页+排序查询
-        return attendanceRepository.findAll(spec, pageable);
+    @Override
+    public List<AttendanceRecord> findByCourseName(String courseName) {
+        if (courseName == null || courseName.isEmpty()) {
+            return attendanceRecordRepository.findAll();
+        }
+        return attendanceRecordRepository.findByCourseName(courseName);
     }
 }

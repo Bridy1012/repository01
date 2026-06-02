@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考勤打卡 - 考勤管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        * {margin: 0;padding: 0;box-sizing: border-box;font-family: "Microsoft YaHei", sans-serif;}
+        body {min-height: 100vh;background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);display: flex;align-items: center;justify-content: center;padding: 20px;}
+        .form-card {background: white;border-radius: 16px;box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);padding: 40px;width: 100%;max-width: 500px;}
+        .form-title {text-align: center;margin-bottom: 30px;color: #333;font-weight: 600;}
+        .alert {padding: 12px 20px;border-radius: 8px;margin-bottom: 20px;}
+        .alert-success {background: #e6ffed;color: #00b42a;border: 1px solid #b7eb8f;}
+        .alert-error {background: #fff2f0;color: #ff4d4f;border: 1px solid #ffccc7;}
+        .form-group {margin-bottom: 20px;}
+        .form-group label {display: block;margin-bottom: 8px;color: #555;font-weight: 500;}
+        .form-control {width: 100%;height: 45px;padding: 0 15px;border: 1px solid #ddd;border-radius: 8px;font-size: 15px;}
+        .form-control:focus {border-color: #667eea;outline: none;box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);}
+        .btn-submit {width: 100%;height: 45px;background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);border: none;color: white;border-radius: 8px;font-weight: 600;font-size: 16px;transition: all 0.3s ease;}
+        .btn-submit:hover {transform: translateY(-2px);box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);}
+        .back-link {text-align: center;margin-top: 20px;}
+        .back-link a {color: #667eea;text-decoration: none;}
+        .back-link a:hover {text-decoration: underline;}
+    </style>
+</head>
+<body>
+<div class="form-card">
+    <h3 class="form-title">考勤打卡</h3>
+
+    <div th:if="${msg}" th:classappend="${type == 'success' ? 'alert-success' : 'alert-error'}" class="alert">
+        <span th:text="${msg}"></span>
+    </div>
+
+    <form th:action="@{/attendance/checkin}" method="post">
+        <!-- 当前学生 -->
+        <div class="form-group">
+            <label>当前学生</label>
+            <input type="text" class="form-control" th:value="${student.name} + ' (' + ${student.studentId} + ')'" readonly>
+        </div>
+
+        <!-- 课程选择 -->
+        <div class="form-group">
+            <label>选择课程</label>
+            <select name="courseId" class="form-control" required>
+                <option value="">请选择课程</option>
+                <option th:each="course : ${courses}" th:value="${course.courseId}" th:text="${course.courseName} + ' (' + ${course.startTime} + ')'"></option>
+            </select>
+            <!-- 隐藏域存储课程名称 -->
+            <input type="hidden" name="courseName" id="courseName">
+        </div>
+
+        <!-- 自动打卡时间 -->
+        <div class="form-group">
+            <label>打卡时间（自动填充）</label>
+            <input type="text" id="checkInTime" class="form-control" readonly>
+        </div>
+
+        <div class="form-group">
+            <label>备注（选填）</label>
+            <textarea name="remark" class="form-control" rows="3" placeholder="请输入备注信息"></textarea>
+        </div>
+
+        <button type="submit" class="btn-submit">提交打卡</button>
+    </form>
+
+    <div class="back-link">
+        <a th:href="@{/students}">返回学生列表</a> |
+        <a th:href="@{/attendance/list}">查看考勤记录</a>
+    </div>
+</div>
+
+<script>
+    window.onload = function() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById("checkInTime").value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
+
+    document.querySelector('select[name="courseId"]').addEventListener('change', function() {
+        let selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            let courseName = selectedOption.text.split(' ')[0];
+            document.getElementById('courseName').value = courseName;
+        } else {
+            document.getElementById('courseName').value = '';
+        }
+    });
+</script>
+</body>
+</html>

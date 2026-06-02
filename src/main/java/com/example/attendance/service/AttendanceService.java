@@ -1,25 +1,22 @@
 package com.example.attendance.service;
 
-import com.example.attendance.Attendance;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import java.time.LocalDateTime;
+import com.example.attendance.AttendanceRecord;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 public interface AttendanceService {
-    // 原有CRUD方法不变
-    Attendance saveAttendance(Attendance attendance);
-    Optional<Attendance> getAttendanceById(Long id);
-    List<Attendance> getAllAttendances();
-    void deleteAttendance(Long id);
+    // 打卡：增加 courseId 参数
+    AttendanceRecord checkIn(String studentId, String studentName, Long courseId, String courseName, String remark);
 
-    // 分页+排序+多条件查询
-    Page<Attendance> pageAttendances(
-            String studentId,       // 学号筛选
-            LocalDateTime startDate,// 考勤日期起始
-            LocalDateTime endDate,  // 考勤日期结束
-            String status,          // 考勤状态
-            Pageable pageable       // 分页+排序参数
-    );
+    List<AttendanceRecord> findByStudentId(String studentId);
+
+    List<AttendanceRecord> filterAttendance(LocalDate startDate, LocalDate endDate, String status, String courseName);
+
+    AttendanceRecord checkOut(String studentId, String courseName);
+
+    List<AttendanceRecord> quickFilter(String studentId, String type, String status, String courseName);
+
+    List<AttendanceRecord> findAllAttendance();
+
+    List<AttendanceRecord> findByCourseName(String courseName);
 }
