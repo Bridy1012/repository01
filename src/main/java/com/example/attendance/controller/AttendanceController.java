@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.security.Principal;
 import java.util.List;
 
@@ -41,7 +42,7 @@ public class AttendanceController {
             student.setStudentId(studentId);
             student.setName("学生" + studentId);
             student.setAttendanceCount(0);
-            student.setClassName("未分班");   // 设置默认班级
+            student.setClassName("未分班");
             studentRepository.save(student);
         }
         List<Course> courses = courseService.findAll();
@@ -53,21 +54,19 @@ public class AttendanceController {
     @PostMapping("/attendance/checkin")
     public String checkIn(
             @RequestParam Long courseId,
-            @RequestParam String courseName,
             @RequestParam(required = false) String remark,
             Principal principal,
             Model model) {
         try {
             String studentId = principal.getName();
             Student student = studentRepository.findByStudentId(studentId);
-            if (student == null) {
-                throw new RuntimeException("学生信息不存在，请重新注册");
-            }
+            Course course = courseService.findById(courseId)
+                    .orElseThrow(() -> new RuntimeException("课程不存在"));
             AttendanceRecord record = attendanceService.checkIn(
                     studentId,
                     student.getName(),
                     courseId,
-                    courseName,
+                    course.getCourseName(),
                     remark
             );
             model.addAttribute("msg", "✅ 打卡成功：" + record.getStatus());
@@ -110,8 +109,9 @@ public class AttendanceController {
         List<AttendanceRecord> list;
         String username = principal.getName();
         User loginUser = userRepository.findByUsername(username);
+        boolean isTeacher = "teacher".equals(loginUser.getRole());
 
-        if ("teacher".equals(loginUser.getRole())) {
+        if (isTeacher) {
             if (courseName != null && !courseName.isEmpty()) {
                 list = attendanceService.findByCourseName(courseName);
             } else {
@@ -123,6 +123,7 @@ public class AttendanceController {
 
         model.addAttribute("attendanceList", list);
         model.addAttribute("courses", courseService.findAll());
+        model.addAttribute("isTeacher", isTeacher);
         return "attendance-list";
     }
 
@@ -172,5 +173,21 @@ public class AttendanceController {
 
         workbook.write(response.getOutputStream());
         workbook.close();
+    }
+
+    @PostMapping("/attendance/delete/{id}")
+    public String deleteAttendance(@PathVariable Long id, RedirectAttributes ra, Principal principal) {
+        try {
+            User loginUser = userRepository.findByUsername(principal.getName());
+            if (!"teacher".equals(loginUser.getRole())) {
+                ra.addFlashAttribute("msg", "无权限删除考勤记录");
+                return "redirect:/attendance/list";
+            }
+            attendanceService.deleteAttendanceRecord(id);
+            ra.addFlashAttribute("msg", "删除考勤记录成功");
+        } catch (Exception e) {
+            ra.addFlashAttribute("msg", "删除失败：" + e.getMessage());
+        }
+        return "redirect:/attendance/list";
     }
 }

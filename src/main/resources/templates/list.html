@@ -43,7 +43,6 @@
             color: #333;
             margin: 0;
         }
-        /* 搜索/排序/批量操作样式 */
         .tool-bar {
             display: flex;
             gap: 10px;
@@ -73,6 +72,8 @@
         .btn-primary {background: #667eea;color: white;}
         .btn-danger {background: #f56c6c;color: white;}
         .btn-success {background: #00b42a;color: white;}
+        .btn-info {background: #17a2b8;color: white;}
+        .btn-warning {background: #ffc107;color: #212529;}
         .btn-add {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
@@ -134,7 +135,6 @@
             color: #999;
             padding: 40px;
         }
-        /* 提示框样式 */
         .alert {
             padding: 12px 20px;
             border-radius: 8px;
@@ -150,7 +150,6 @@
             color: #ff4d4f;
             border: 1px solid #ffccc7;
         }
-        /* 复选框样式 */
         .checkbox {
             width: 18px;
             height: 18px;
@@ -164,13 +163,14 @@
         <div class="card-header">
             <h3 class="card-title">学生列表</h3>
 
-            <!-- 工具栏 -->
             <div class="tool-bar">
                 <a href="/courses" class="btn btn-info">课程管理</a>
+                <a href="/attendance/list" class="btn btn-info">考勤记录</a>
+                <!-- 请假审批入口（教师专用） -->
+                <a href="/leave/pending" class="btn btn-warning">请假审批</a>
                 <!-- 搜索表单 -->
                 <form th:action="@{/students}" method="get" class="d-flex gap-2">
                     <input type="text" name="keyword" class="search-input" th:value="${keyword}" placeholder="学号/姓名搜索">
-                    <!-- 排序 -->
                     <select name="sortField" class="sort-select">
                         <option value="studentId" th:selected="${sortField=='studentId'}">按学号</option>
                         <option value="name" th:selected="${sortField=='name'}">按姓名</option>
@@ -198,7 +198,6 @@
         </div>
 
         <div class="card-body">
-            <!-- 提示框 -->
             <div th:if="${msg}" th:classappend="${type == 'success' ? 'alert-success' : 'alert-error'}" class="alert">
                 <span th:text="${msg}"></span>
             </div>
@@ -246,24 +245,16 @@
     </div>
 </div>
 
-<!-- 批量删除JS -->
 <script>
-    // 批量删除提交逻辑
     document.getElementById("batchForm").addEventListener("submit", function(e) {
-        // 获取所有选中的学生复选框
         const selectedCheckboxes = document.querySelectorAll('input[name="studentIds"]:checked');
-        // 校验：未选择任何学生时阻止提交
         if (selectedCheckboxes.length === 0) {
             alert("请先选择要删除的学生！");
-            e.preventDefault(); // 阻止表单提交
+            e.preventDefault();
             return false;
         }
-
-        // 清空批量删除表单中原有的隐藏输入
         const oldInputs = this.querySelectorAll('input[name="studentIds"]');
         oldInputs.forEach(input => input.remove());
-
-        // 将选中的学生ID添加到批量删除表单
         selectedCheckboxes.forEach(checkbox => {
             const hiddenInput = document.createElement("input");
             hiddenInput.type = "hidden";

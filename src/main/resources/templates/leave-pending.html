@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>待审批请假</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-4">
+    <h2>待审批请假</h2>
+    <div th:if="${msg}" class="alert alert-success" th:text="${msg}"></div>
+    <table class="table table-bordered">
+        <thead>
+        <tr><th>学号</th><th>姓名</th><th>课程</th><th>日期范围</th><th>原因</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="l : ${leaves}">
+            <td th:text="${l.studentId}"></td>
+            <td th:text="${l.studentName}"></td>
+            <td th:text="${l.courseName}"></td>
+            <td th:text="${l.startDate} + ' 至 ' + ${l.endDate}"></td>
+            <td th:text="${l.reason}"></td>
+            <td>
+                <form th:action="@{/leave/approve}" method="post" style="display:inline-block;">
+                    <input type="hidden" name="id" th:value="${l.id}">
+                    <input type="text" name="comment" placeholder="批注意见" style="width:150px;">
+                    <button type="submit" class="btn btn-success btn-sm">批准</button>
+                </form>
+                <form th:action="@{/leave/reject}" method="post" style="display:inline-block;">
+                    <input type="hidden" name="id" th:value="${l.id}">
+                    <input type="text" name="comment" placeholder="拒绝理由" style="width:150px;">
+                    <button type="submit" class="btn btn-danger btn-sm">拒绝</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <a href="/students" class="btn btn-secondary">返回学生管理</a>
+</div>
+</body>
+</html>

@@ -21,7 +21,7 @@
         .btn-submit {width: 100%;height: 45px;background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);border: none;color: white;border-radius: 8px;font-weight: 600;font-size: 16px;transition: all 0.3s ease;}
         .btn-submit:hover {transform: translateY(-2px);box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);}
         .back-link {text-align: center;margin-top: 20px;}
-        .back-link a {color: #667eea;text-decoration: none;}
+        .back-link a {color: #667eea;text-decoration: none;margin: 0 8px;}
         .back-link a:hover {text-decoration: underline;}
     </style>
 </head>
@@ -34,21 +34,19 @@
     </div>
 
     <form th:action="@{/attendance/checkin}" method="post">
-        <!-- 当前学生 -->
+        <!-- 当前学生信息 -->
         <div class="form-group">
             <label>当前学生</label>
-            <input type="text" class="form-control" th:value="${student.name} + ' (' + ${student.studentId} + ')'" readonly>
+            <input type="text" class="form-control" th:value="${student != null ? student.name + ' (' + student.studentId + ')' : ''}" readonly>
         </div>
 
-        <!-- 课程选择 -->
+        <!-- 课程选择（只需传递 courseId） -->
         <div class="form-group">
             <label>选择课程</label>
             <select name="courseId" class="form-control" required>
                 <option value="">请选择课程</option>
                 <option th:each="course : ${courses}" th:value="${course.courseId}" th:text="${course.courseName} + ' (' + ${course.startTime} + ')'"></option>
             </select>
-            <!-- 隐藏域存储课程名称 -->
-            <input type="hidden" name="courseName" id="courseName">
         </div>
 
         <!-- 自动打卡时间 -->
@@ -66,8 +64,8 @@
     </form>
 
     <div class="back-link">
-        <a th:href="@{/students}">返回学生列表</a> |
-        <a th:href="@{/attendance/list}">查看考勤记录</a>
+        <a th:href="@{/leave/apply}">请假申请</a> |
+        <a th:href="@{/leave/my}">我的请假记录</a>
     </div>
 </div>
 
@@ -82,16 +80,6 @@
         const seconds = String(now.getSeconds()).padStart(2, '0');
         document.getElementById("checkInTime").value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
-
-    document.querySelector('select[name="courseId"]').addEventListener('change', function() {
-        let selectedOption = this.options[this.selectedIndex];
-        if (selectedOption.value) {
-            let courseName = selectedOption.text.split(' ')[0];
-            document.getElementById('courseName').value = courseName;
-        } else {
-            document.getElementById('courseName').value = '';
-        }
-    });
 </script>
 </body>
 </html>

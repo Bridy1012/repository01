@@ -9,6 +9,8 @@
         table { border-collapse: collapse; width: 100%; margin-top: 20px; }
         th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
         .btn-export { background: #4CAF50; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; }
+        .btn-delete { background: #f56c6c; color: white; padding: 4px 8px; border-radius: 4px; text-decoration: none; font-size: 12px; border: none; cursor: pointer; }
+        .btn-delete:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -16,7 +18,6 @@
 
 <div class="filter-bar">
     <form method="get" th:action="@{/attendance/list}" style="display: inline;">
-        <!-- 课程筛选下拉 -->
         <select name="courseName">
             <option value="">全部课程</option>
             <option th:each="course : ${courses}" th:value="${course.courseName}" th:text="${course.courseName}" th:selected="${param.courseName == course.courseName}"></option>
@@ -34,7 +35,16 @@
 
 <table>
     <thead>
-    <tr><th>学号</th><th>姓名</th><th>课程</th><th>打卡时间</th><th>早退时间</th><th>状态</th><th>备注</th></tr>
+    <tr>
+        <th>学号</th>
+        <th>姓名</th>
+        <th>课程</th>
+        <th>打卡时间</th>
+        <th>早退时间</th>
+        <th>状态</th>
+        <th>备注</th>
+        <th th:if="${isTeacher}">操作</th>
+    </tr>
     </thead>
     <tbody>
     <tr th:each="record : ${attendanceList}">
@@ -45,6 +55,11 @@
         <td th:text="${record.checkOutTime != null ? #temporals.format(record.checkOutTime, 'yyyy-MM-dd HH:mm') : '无'}"></td>
         <td th:text="${record.status}"></td>
         <td th:text="${record.remark}"></td>
+        <td th:if="${isTeacher}">
+            <form th:action="@{/attendance/delete/{id}(id=${record.id})}" method="post" onsubmit="return confirm('确定删除该条考勤记录吗？');">
+                <button type="submit" class="btn-delete">删除</button>
+            </form>
+        </td>
     </tr>
     </tbody>
 </table>

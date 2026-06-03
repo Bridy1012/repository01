@@ -2,28 +2,32 @@ package com.example.attendance.service.impl;
 
 import com.example.attendance.AttendanceRecord;
 import com.example.attendance.Course;
+import com.example.attendance.Student;
 import com.example.attendance.repository.AttendanceRecordRepository;
+import com.example.attendance.repository.StudentRepository;
 import com.example.attendance.service.AttendanceService;
 import com.example.attendance.service.CourseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.DayOfWeek;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class AttendanceServiceImpl implements AttendanceService {
 
     @Autowired
     private AttendanceRecordRepository attendanceRecordRepository;
-
     @Autowired
     private CourseService courseService;
+    @Autowired
+    private StudentRepository studentRepository;
 
     @Override
+    @Transactional
     public AttendanceRecord checkIn(String studentId, String studentName, Long courseId, String courseName, String remark) {
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
@@ -35,14 +39,9 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new RuntimeException("❌ 今日该课程已打卡！");
         }
 
-        // 获取课程信息（根据课程名，或根据 courseId）
+        // 获取课程的上课时间
         Course course = courseService.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("❌ 课程不存在，请联系老师！"));
-        // 验证课程名是否匹配（可选）
-        if (!course.getCourseName().equals(courseName)) {
-            throw new RuntimeException("❌ 课程名称不匹配！");
-        }
-
+                .orElseThrow(() -> new RuntimeException("❌ 课程不存在，请联系老师设置上课时间！"));
         LocalTime startTime = course.getStartTime();
         LocalTime allowStart = startTime.minusMinutes(15);
         LocalTime allowEnd = startTime.plusMinutes(30);
@@ -51,7 +50,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new RuntimeException("❌ 不在打卡时间内（" + allowStart + " - " + allowEnd + "）！");
         }
 
-        // 迟到判断：超过上课时间即为迟到
+        // 迟到判断
         String status = nowTime.isAfter(startTime) ? "迟到" : "正常";
 
         AttendanceRecord record = new AttendanceRecord();
@@ -64,10 +63,20 @@ public class AttendanceServiceImpl implements AttendanceService {
         record.setStatus(status);
         record.setRemark(remark);
 
-        return attendanceRecordRepository.save(record);
+        AttendanceRecord savedRecord = attendanceRecordRepository.save(record);
+
+        // 同步更新学生的考勤次数
+        Student student = studentRepository.findByStudentId(studentId);
+        if (student != null) {
+            Integer currentCount = student.getAttendanceCount();
+            if (currentCount == null) currentCount = 0;
+            student.setAttendanceCount(currentCount + 1);
+            studentRepository.save(student);
+        }
+
+        return savedRecord;
     }
 
-    // 以下方法保持不变，但需要确保 findByCourseName 已在 Repository 中定义
     @Override
     public List<AttendanceRecord> findByStudentId(String studentId) {
         return attendanceRecordRepository.findByStudentId(studentId);
@@ -87,6 +96,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
+    @Transactional
     public AttendanceRecord checkOut(String studentId, String courseName) {
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
@@ -140,5 +150,13 @@ public class AttendanceServiceImpl implements AttendanceService {
             return attendanceRecordRepository.findAll();
         }
         return attendanceRecordRepository.findByCourseName(courseName);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAttendanceRecord(Long recordId) {
+        AttendanceRecord record = attendanceRecordRepository.findById(recordId)
+                .orElseThrow(() -> new RuntimeException("考勤记录不存在"));
+        attendanceRecordRepository.delete(record);
     }
 }
