@@ -11,11 +11,8 @@ public interface StudentService {
     void deleteById(String studentId);
     List<Student> searchStudents(String keyword);
     boolean existsByStudentId(String studentId);
-
-    // 新增：批量删除
     void batchDelete(List<String> studentIds);
-    // 新增：排序查询
     List<Student> findAllSorted(Sort sort);
-    // 新增：搜索+排序
     List<Student> searchStudentsSorted(String keyword, Sort sort);
+    void batchSave(List<Student> students);
 }

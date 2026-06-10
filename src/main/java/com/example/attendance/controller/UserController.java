@@ -10,6 +10,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class UserController {
@@ -34,30 +36,38 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public String register(User user, Model model) {
+    public String register(@RequestParam String username,
+                           @RequestParam String password,
+                           @RequestParam String name,
+                           RedirectAttributes redirectAttributes) {
         try {
-            if (userRepository.findByUsername(user.getUsername()) != null) {
-                model.addAttribute("msg", "该账号已注册！");
-                return "register";
+            if (userRepository.findByUsername(username) != null) {
+                redirectAttributes.addFlashAttribute("errorMsg", "该账号已注册！");
+                return "redirect:/register";
             }
+
+            // 创建 User
+            User user = new User();
+            user.setUsername(username);
+            user.setPassword(passwordEncoder.encode(password));
             user.setRole("student");
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-            user.setName(user.getUsername());
+            user.setName(name);   // 使用用户填写的真实姓名
             userRepository.save(user);
 
+            // 创建 Student
             Student student = new Student();
-            student.setStudentId(user.getUsername());
-            student.setName("学生" + user.getUsername());
+            student.setStudentId(username);
+            student.setName(name);   // 与 user.name 保持一致
             student.setAttendanceCount(0);
-            student.setClassName("未分班");   // 设置默认班级
+            student.setClassName("未分班");
             studentRepository.save(student);
 
-            model.addAttribute("msg", "注册成功！请登录");
-            return "login";
+            redirectAttributes.addFlashAttribute("msg", "注册成功！请登录");
+            return "redirect:/login";
         } catch (Exception e) {
             e.printStackTrace();
-            model.addAttribute("msg", "注册失败：" + e.getMessage());
-            return "register";
+            redirectAttributes.addFlashAttribute("errorMsg", "注册失败：" + e.getMessage());
+            return "redirect:/register";
         }
     }
 }

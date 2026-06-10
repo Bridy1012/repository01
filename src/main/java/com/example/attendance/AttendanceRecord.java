@@ -16,7 +16,7 @@ public class AttendanceRecord {
     private String studentId;
     private String studentName;
     private String courseName;
-    private Long courseId;          // 新增：关联课程主键
+    private Long courseId;
     private LocalDateTime checkInTime;
     private LocalDate checkInDate;
     private String status;

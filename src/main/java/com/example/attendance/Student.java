@@ -10,7 +10,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "student")
 public class Student {
-
     @Id
     @Column(name = "student_id")
     private String studentId;
@@ -18,9 +17,9 @@ public class Student {
     private String name;
 
     @Column(name = "class_name")
-    private String className = "";   // 默认空字符串，避免 null
+    private String className = "";
 
-    @Column(name = "attendance_count", nullable = false)
+    @Column(name = "attendance_count")
     private Integer attendanceCount = 0;
 
     @CreationTimestamp
@@ -33,6 +32,4 @@ public class Student {
     private LocalDate birthDate;
 
     private String phone = "";
-
-    // Lombok @Data 已生成无参构造、getter/setter
 }

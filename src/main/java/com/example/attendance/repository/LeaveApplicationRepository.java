@@ -7,4 +7,5 @@ import java.util.List;
 public interface LeaveApplicationRepository extends JpaRepository<LeaveApplication, Long> {
     List<LeaveApplication> findByStudentIdOrderByApplyTimeDesc(String studentId);
     List<LeaveApplication> findByStatusOrderByApplyTimeAsc(String status);
+    List<LeaveApplication> findByStudentIdInAndStatus(List<String> studentIds, String status);
 }

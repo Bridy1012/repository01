@@ -2,66 +2,122 @@
 <html lang="zh" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>考勤记录</title>
+    <title>考勤记录 - 考勤管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
-        .filter-bar { margin: 20px 0; }
-        select, button { padding: 6px; margin: 0 5px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        .btn-export { background: #4CAF50; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; }
-        .btn-delete { background: #f56c6c; color: white; padding: 4px 8px; border-radius: 4px; text-decoration: none; font-size: 12px; border: none; cursor: pointer; }
-        .btn-delete:hover { opacity: 0.8; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:"Microsoft YaHei",sans-serif; }
+        body { min-height:100vh; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); padding:30px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .card { border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.15); overflow:hidden; }
+        .card-header { background:white; padding:20px 30px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; }
+        .card-title { font-size:22px; font-weight:600; color:#333; margin:0; }
+        .filter-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px; }
+        .filter-select { height:38px; padding:0 12px; border:1px solid #ddd; border-radius:6px; background:white; }
+        .btn { height:38px; padding:0 15px; border-radius:6px; border:none; cursor:pointer; transition:all 0.3s ease; }
+        .btn-primary { background:#667eea; color:white; }
+        .btn-primary:hover { background:#5a67d8; transform:translateY(-2px); }
+        .btn-success { background:#00b42a; color:white; }
+        .btn-success:hover { background:#009a24; transform:translateY(-2px); }
+        .btn-info { background:#17a2b8; color:white; }
+        .btn-info:hover { background:#138496; transform:translateY(-2px); }
+        .btn-secondary { background:#6c757d; color:white; }
+        .btn-secondary:hover { background:#5a6268; transform:translateY(-2px); }
+        .btn-delete { background:#f56c6c; color:white; padding:4px 8px; border-radius:4px; font-size:12px; border:none; cursor:pointer; }
+        .btn-delete:hover { opacity:0.8; }
+        .card-body { padding:30px; background:white; }
+        .table { width:100%; border-collapse:collapse; }
+        .table th { background:#f8f9fa; padding:12px; text-align:left; font-weight:600; color:#333; border-bottom:2px solid #eee; }
+        .table td { padding:12px; border-bottom:1px solid #eee; color:#666; }
+        .empty-tip { text-align:center; color:#999; padding:40px; }
+        .alert { padding:12px 20px; border-radius:8px; margin-bottom:20px; }
+        .alert-success { background:#e6ffed; color:#00b42a; border:1px solid #b7eb8f; }
+        .alert-error { background:#fff2f0; color:#ff4d4f; border:1px solid #ffccc7; }
+        .badge { padding:4px 8px; border-radius:12px; font-size:12px; }
+        .badge-success { background:#00b42a; color:white; }
+        .badge-warning { background:#ffc107; color:#212529; }
+        .badge-danger { background:#f56c6c; color:white; }
     </style>
 </head>
 <body>
-<h2>考勤记录</h2>
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><i class="bi bi-calendar-check"></i> 考勤记录</h3>
+            <a th:href="@{/students}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> 返回学生管理</a>
+        </div>
+        <div class="card-body">
+            <div th:if="${msg}" th:classappend="${type == 'success' ? 'alert-success' : 'alert-error'}" class="alert">
+                <span th:text="${msg}"></span>
+            </div>
 
-<div class="filter-bar">
-    <form method="get" th:action="@{/attendance/list}" style="display: inline;">
-        <select name="courseName">
-            <option value="">全部课程</option>
-            <option th:each="course : ${courses}" th:value="${course.courseName}" th:text="${course.courseName}" th:selected="${param.courseName == course.courseName}"></option>
-        </select>
+            <!-- 筛选栏：课程下拉 + 筛选按钮 + 快速时间 + 重置 -->
+            <div class="filter-bar">
+                <form method="get" th:action="@{/attendance/list}" style="display: inline-flex; gap: 10px; flex-wrap: wrap;">
+                    <select name="courseName" class="filter-select">
+                        <option value="">全部课程</option>
+                        <option th:each="course : ${courses}" th:value="${course.courseName}" th:text="${course.courseName}" th:selected="${param.courseName == course.courseName}"></option>
+                    </select>
+                    <!-- 专门筛选按钮（只传递课程参数） -->
+                    <button type="submit" class="btn btn-primary">筛选</button>
+                    <!-- 快速时间筛选 -->
+                    <button type="submit" name="timeType" value="today" class="btn btn-primary">今天</button>
+                    <button type="submit" name="timeType" value="week" class="btn btn-primary">本周</button>
+                    <button type="submit" name="timeType" value="month" class="btn btn-primary">本月</button>
+                    <!-- 重置筛选（清空所有参数） -->
+                    <button type="button" class="btn btn-info" onclick="resetFilter()">重置筛选</button>
+                </form>
+                <a th:href="@{/attendance/export(courseName=${param.courseName}, timeType=${param.timeType})}" class="btn btn-success">
+                    <i class="bi bi-download"></i> 导出Excel
+                </a>
+            </div>
 
-        <button type="submit" name="timeType" value="today">今天</button>
-        <button type="submit" name="timeType" value="week">本周</button>
-        <button type="submit" name="timeType" value="month">本月</button>
-        <button type="submit">重置筛选</button>
-    </form>
-
-    <a th:href="@{/attendance/export(courseName=${param.courseName}, timeType=${param.timeType})}"
-       class="btn-export" style="margin-left: 10px;">导出Excel</a>
+            <!-- 考勤记录表格 -->
+            <table class="table" th:if="${#lists.size(attendanceList) > 0}">
+                <thead>
+                <tr>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th>课程</th>
+                    <th>打卡时间</th>
+                    <th>早退时间</th>
+                    <th>状态</th>
+                    <th>备注</th>
+                    <th th:if="${isTeacher}">操作</th>
+                </thead>
+                <tbody>
+                <tr th:each="record : ${attendanceList}">
+                    <td th:text="${record.studentId}"></td>
+                    <td th:text="${record.studentName}"></td>
+                    <td th:text="${record.courseName}"></td>
+                    <td th:text="${#temporals.format(record.checkInTime, 'yyyy-MM-dd HH:mm')}"></td>
+                    <td th:text="${record.checkOutTime != null ? #temporals.format(record.checkOutTime, 'yyyy-MM-dd HH:mm') : '无'}"></td>
+                    <td>
+                        <span th:if="${record.status == '正常'}" class="badge badge-success">正常</span>
+                        <span th:if="${record.status == '迟到'}" class="badge badge-warning">迟到</span>
+                        <span th:if="${record.status == '早退'}" class="badge badge-danger">早退</span>
+                    </td>
+                    <td th:text="${record.remark}"></td>
+                    <td th:if="${isTeacher}">
+                        <form th:action="@{/attendance/delete/{id}(id=${record.id})}" method="post" onsubmit="return confirm('确定删除该条考勤记录吗？');">
+                            <button type="submit" class="btn-delete"><i class="bi bi-trash"></i> 删除</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="empty-tip" th:unless="${#lists.size(attendanceList) > 0}">
+                <i class="bi bi-inbox"></i> 暂无考勤记录
+            </div>
+        </div>
+    </div>
 </div>
 
-<table>
-    <thead>
-    <tr>
-        <th>学号</th>
-        <th>姓名</th>
-        <th>课程</th>
-        <th>打卡时间</th>
-        <th>早退时间</th>
-        <th>状态</th>
-        <th>备注</th>
-        <th th:if="${isTeacher}">操作</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="record : ${attendanceList}">
-        <td th:text="${record.studentId}"></td>
-        <td th:text="${record.studentName}"></td>
-        <td th:text="${record.courseName}"></td>
-        <td th:text="${#temporals.format(record.checkInTime, 'yyyy-MM-dd HH:mm')}"></td>
-        <td th:text="${record.checkOutTime != null ? #temporals.format(record.checkOutTime, 'yyyy-MM-dd HH:mm') : '无'}"></td>
-        <td th:text="${record.status}"></td>
-        <td th:text="${record.remark}"></td>
-        <td th:if="${isTeacher}">
-            <form th:action="@{/attendance/delete/{id}(id=${record.id})}" method="post" onsubmit="return confirm('确定删除该条考勤记录吗？');">
-                <button type="submit" class="btn-delete">删除</button>
-            </form>
-        </td>
-    </tr>
-    </tbody>
-</table>
+<script>
+    function resetFilter() {
+        // 清空课程参数，跳转到 /attendance/list 不带任何参数
+        window.location.href = '/attendance/list';
+    }
+</script>
 </body>
 </html>

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import java.security.Principal;
 import java.util.List;
 
@@ -52,23 +53,17 @@ public class AttendanceController {
     }
 
     @PostMapping("/attendance/checkin")
-    public String checkIn(
-            @RequestParam Long courseId,
-            @RequestParam(required = false) String remark,
-            Principal principal,
-            Model model) {
+    public String checkIn(@RequestParam Long courseId,
+                          @RequestParam(required = false) String remark,
+                          Principal principal,
+                          Model model) {
         try {
             String studentId = principal.getName();
             Student student = studentRepository.findByStudentId(studentId);
             Course course = courseService.findById(courseId)
                     .orElseThrow(() -> new RuntimeException("课程不存在"));
             AttendanceRecord record = attendanceService.checkIn(
-                    studentId,
-                    student.getName(),
-                    courseId,
-                    course.getCourseName(),
-                    remark
-            );
+                    studentId, student.getName(), courseId, course.getCourseName(), remark);
             model.addAttribute("msg", "✅ 打卡成功：" + record.getStatus());
             model.addAttribute("type", "success");
         } catch (Exception e) {
@@ -81,10 +76,9 @@ public class AttendanceController {
     }
 
     @PostMapping("/attendance/checkout")
-    public String checkOut(
-            @RequestParam String courseName,
-            Principal principal,
-            Model model) {
+    public String checkOut(@RequestParam String courseName,
+                           Principal principal,
+                           Model model) {
         try {
             String studentId = principal.getName();
             attendanceService.checkOut(studentId, courseName);
@@ -99,25 +93,27 @@ public class AttendanceController {
         return "attendance";
     }
 
+    // 考勤列表（教师可筛选课程）
     @GetMapping("/attendance/list")
-    public String attendanceList(
-            @RequestParam(required = false) String courseName,
-            @RequestParam(required = false) String timeType,
-            @RequestParam(required = false) String status,
-            Principal principal,
-            Model model) {
+    public String attendanceList(@RequestParam(required = false) String courseName,
+                                 @RequestParam(required = false) String timeType,
+                                 @RequestParam(required = false) String status,
+                                 Principal principal,
+                                 Model model) {
         List<AttendanceRecord> list;
         String username = principal.getName();
         User loginUser = userRepository.findByUsername(username);
         boolean isTeacher = "teacher".equals(loginUser.getRole());
 
         if (isTeacher) {
-            if (courseName != null && !courseName.isEmpty()) {
-                list = attendanceService.findByCourseName(courseName);
+            // 教师：如果提供了课程名，按课程筛选；否则查询全部
+            if (courseName != null && !courseName.trim().isEmpty()) {
+                list = attendanceService.findByCourseName(courseName.trim());
             } else {
                 list = attendanceService.findAllAttendance();
             }
         } else {
+            // 学生：使用快速筛选（内部支持课程名过滤）
             list = attendanceService.quickFilter(username, timeType, status, courseName);
         }
 
@@ -127,19 +123,19 @@ public class AttendanceController {
         return "attendance-list";
     }
 
+    // 导出Excel（支持课程筛选）
     @GetMapping("/attendance/export")
-    public void exportAttendance(
-            @RequestParam(required = false) String courseName,
-            @RequestParam(required = false) String timeType,
-            Principal principal,
-            HttpServletResponse response) throws Exception {
+    public void exportAttendance(@RequestParam(required = false) String courseName,
+                                 @RequestParam(required = false) String timeType,
+                                 Principal principal,
+                                 HttpServletResponse response) throws Exception {
         String username = principal.getName();
         User loginUser = userRepository.findByUsername(username);
         List<AttendanceRecord> list;
 
         if ("teacher".equals(loginUser.getRole())) {
-            if (courseName != null && !courseName.isEmpty()) {
-                list = attendanceService.findByCourseName(courseName);
+            if (courseName != null && !courseName.trim().isEmpty()) {
+                list = attendanceService.findByCourseName(courseName.trim());
             } else {
                 list = attendanceService.findAllAttendance();
             }
@@ -170,7 +166,6 @@ public class AttendanceController {
             row.createCell(4).setCellValue(r.getCheckOutTime() == null ? "无" : r.getCheckOutTime().toString());
             row.createCell(5).setCellValue(r.getStatus());
         }
-
         workbook.write(response.getOutputStream());
         workbook.close();
     }

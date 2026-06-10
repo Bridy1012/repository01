@@ -44,21 +44,23 @@ public class StudentServiceImpl implements StudentService {
         return studentRepository.existsById(studentId);
     }
 
-    // 批量删除实现
     @Override
     public void batchDelete(List<String> studentIds) {
         studentRepository.deleteAllById(studentIds);
     }
 
-    // 排序查询实现
     @Override
     public List<Student> findAllSorted(Sort sort) {
         return studentRepository.findAll(sort);
     }
 
-    // 搜索+排序实现
     @Override
     public List<Student> searchStudentsSorted(String keyword, Sort sort) {
         return studentRepository.findByStudentIdContainingOrNameContaining(keyword, keyword, sort);
+    }
+
+    @Override
+    public void batchSave(List<Student> students) {
+        studentRepository.saveAll(students);
     }
 }

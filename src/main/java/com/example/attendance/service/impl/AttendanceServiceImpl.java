@@ -29,28 +29,23 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     @Transactional
     public AttendanceRecord checkIn(String studentId, String studentName, Long courseId, String courseName, String remark) {
+        // ... 原有打卡逻辑（时间窗口、重复判断等）...
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
         LocalTime nowTime = now.toLocalTime();
 
-        // 重复打卡判断
         boolean hasCheckIn = attendanceRecordRepository.existsByStudentIdAndCheckInDateAndCourseName(studentId, today, courseName);
         if (hasCheckIn) {
             throw new RuntimeException("❌ 今日该课程已打卡！");
         }
-
-        // 获取课程的上课时间
         Course course = courseService.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("❌ 课程不存在，请联系老师设置上课时间！"));
+                .orElseThrow(() -> new RuntimeException("❌ 课程不存在"));
         LocalTime startTime = course.getStartTime();
         LocalTime allowStart = startTime.minusMinutes(15);
         LocalTime allowEnd = startTime.plusMinutes(30);
-
         if (nowTime.isBefore(allowStart) || nowTime.isAfter(allowEnd)) {
             throw new RuntimeException("❌ 不在打卡时间内（" + allowStart + " - " + allowEnd + "）！");
         }
-
-        // 迟到判断
         String status = nowTime.isAfter(startTime) ? "迟到" : "正常";
 
         AttendanceRecord record = new AttendanceRecord();
@@ -64,16 +59,14 @@ public class AttendanceServiceImpl implements AttendanceService {
         record.setRemark(remark);
 
         AttendanceRecord savedRecord = attendanceRecordRepository.save(record);
-
-        // 同步更新学生的考勤次数
+        // 更新学生考勤次数
         Student student = studentRepository.findByStudentId(studentId);
         if (student != null) {
-            Integer currentCount = student.getAttendanceCount();
-            if (currentCount == null) currentCount = 0;
-            student.setAttendanceCount(currentCount + 1);
+            Integer count = student.getAttendanceCount();
+            if (count == null) count = 0;
+            student.setAttendanceCount(count + 1);
             studentRepository.save(student);
         }
-
         return savedRecord;
     }
 
@@ -87,7 +80,6 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (startDate == null) startDate = LocalDate.of(2000, 1, 1);
         if (endDate == null) endDate = LocalDate.now();
         if (courseName == null) courseName = "";
-
         if (status == null || status.trim().isEmpty()) {
             return attendanceRecordRepository.findByCheckInDateBetweenAndCourseNameContaining(startDate, endDate, courseName);
         } else {
@@ -100,15 +92,12 @@ public class AttendanceServiceImpl implements AttendanceService {
     public AttendanceRecord checkOut(String studentId, String courseName) {
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
-
         AttendanceRecord record = attendanceRecordRepository
                 .findByStudentIdAndCheckInDateAndCourseName(studentId, today, courseName)
                 .orElseThrow(() -> new RuntimeException("❌ 未打卡，无法早退！"));
-
         if (record.getCheckOutTime() != null) {
             throw new RuntimeException("❌ 已提交早退！");
         }
-
         record.setCheckOutTime(now);
         record.setStatus("早退");
         return attendanceRecordRepository.save(record);
@@ -118,20 +107,12 @@ public class AttendanceServiceImpl implements AttendanceService {
     public List<AttendanceRecord> quickFilter(String studentId, String type, String status, String courseName) {
         LocalDate start = null;
         LocalDate end = LocalDate.now();
-
         if (type != null) {
             switch (type) {
-                case "today":
-                    start = LocalDate.now();
-                    break;
-                case "week":
-                    start = LocalDate.now().with(DayOfWeek.MONDAY);
-                    break;
-                case "month":
-                    start = LocalDate.now().withDayOfMonth(1);
-                    break;
-                default:
-                    return filterAttendance(null, null, status, courseName);
+                case "today": start = LocalDate.now(); break;
+                case "week": start = LocalDate.now().with(DayOfWeek.MONDAY); break;
+                case "month": start = LocalDate.now().withDayOfMonth(1); break;
+                default: return filterAttendance(null, null, status, courseName);
             }
             return filterAttendance(start, end, status, courseName);
         } else {
@@ -146,10 +127,10 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public List<AttendanceRecord> findByCourseName(String courseName) {
-        if (courseName == null || courseName.isEmpty()) {
+        if (courseName == null || courseName.trim().isEmpty()) {
             return attendanceRecordRepository.findAll();
         }
-        return attendanceRecordRepository.findByCourseName(courseName);
+        return attendanceRecordRepository.findByCourseName(courseName.trim());
     }
 
     @Override
