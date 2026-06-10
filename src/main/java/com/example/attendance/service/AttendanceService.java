@@ -12,5 +12,6 @@ public interface AttendanceService {
     List<AttendanceRecord> quickFilter(String studentId, String type, String status, String courseName);
     List<AttendanceRecord> findAllAttendance();
     List<AttendanceRecord> findByCourseName(String courseName);
-    void deleteAttendanceRecord(Long recordId);   // 新增删除方法
+    void deleteAttendanceRecord(Long recordId);
+    void batchDeleteAttendanceRecords(List<Long> ids);   // 新增批量删除
 }

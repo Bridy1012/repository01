@@ -7,7 +7,6 @@ import com.example.attendance.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,10 +17,8 @@ public class UserController {
 
     @Autowired
     private UserRepository userRepository;
-
     @Autowired
     private StudentRepository studentRepository;
-
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -46,18 +43,16 @@ public class UserController {
                 return "redirect:/register";
             }
 
-            // 创建 User
             User user = new User();
             user.setUsername(username);
             user.setPassword(passwordEncoder.encode(password));
             user.setRole("student");
-            user.setName(name);   // 使用用户填写的真实姓名
+            user.setName(name);
             userRepository.save(user);
 
-            // 创建 Student
             Student student = new Student();
             student.setStudentId(username);
-            student.setName(name);   // 与 user.name 保持一致
+            student.setName(name);
             student.setAttendanceCount(0);
             student.setClassName("未分班");
             studentRepository.save(student);
@@ -65,7 +60,6 @@ public class UserController {
             redirectAttributes.addFlashAttribute("msg", "注册成功！请登录");
             return "redirect:/login";
         } catch (Exception e) {
-            e.printStackTrace();
             redirectAttributes.addFlashAttribute("errorMsg", "注册失败：" + e.getMessage());
             return "redirect:/register";
         }

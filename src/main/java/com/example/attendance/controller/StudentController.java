@@ -82,14 +82,12 @@ public class StudentController {
         return "list";
     }
 
-    // 新增页面
     @GetMapping("/add")
     public String addForm(Model model) {
         model.addAttribute("student", new Student());
         return "add";
     }
 
-    // 新增提交
     @PostMapping("/add")
     public String addSubmit(Student student, RedirectAttributes attributes) {
         if (studentService.existsByStudentId(student.getStudentId())) {
@@ -103,6 +101,7 @@ public class StudentController {
             return "redirect:/students/add";
         }
         studentService.save(student);
+        // 同步创建 user 账号
         User user = new User();
         user.setUsername(student.getStudentId());
         user.setPassword(passwordEncoder.encode("123456"));
@@ -114,7 +113,6 @@ public class StudentController {
         return "redirect:/students";
     }
 
-    // 编辑页面
     @GetMapping("/edit/{studentId}")
     public String editForm(@PathVariable String studentId, Model model) {
         Student student = studentService.findById(studentId);
@@ -122,11 +120,11 @@ public class StudentController {
         return "edit";
     }
 
-    // 编辑提交
     @PostMapping("/edit")
     public String editSubmit(Student student, RedirectAttributes attributes) {
         Student oldStudent = studentService.findById(student.getStudentId());
         studentService.save(student);
+        // 如果姓名变化，同步更新 user 表的 name
         if (!oldStudent.getName().equals(student.getName())) {
             User user = userRepository.findByUsername(student.getStudentId());
             if (user != null) {
@@ -139,16 +137,25 @@ public class StudentController {
         return "redirect:/students";
     }
 
-    // 删除
+    // 单个删除：同时删除 student 和 user
     @GetMapping("/delete/{studentId}")
     public String delete(@PathVariable String studentId, RedirectAttributes attributes) {
+        // 删除关联的考勤记录和请假记录（外键级联或手动）
+        attendanceRecordRepository.deleteAll(attendanceRecordRepository.findByStudentId(studentId));
+        leaveApplicationRepository.deleteAll(leaveApplicationRepository.findByStudentIdOrderByApplyTimeDesc(studentId));
+        // 删除 student
         studentService.deleteById(studentId);
-        attributes.addFlashAttribute("msg", "删除学生成功！");
+        // 删除对应的 user
+        User user = userRepository.findByUsername(studentId);
+        if (user != null) {
+            userRepository.delete(user);
+        }
+        attributes.addFlashAttribute("msg", "删除学生成功！已同步删除登录账号。");
         attributes.addFlashAttribute("type", "success");
         return "redirect:/students";
     }
 
-    // 批量删除
+    // 批量删除：同时删除 student 和对应的 user
     @PostMapping("/batchDelete")
     public String batchDelete(@RequestParam List<String> studentIds, RedirectAttributes attributes) {
         if (studentIds.isEmpty()) {
@@ -156,8 +163,19 @@ public class StudentController {
             attributes.addFlashAttribute("type", "error");
             return "redirect:/students";
         }
-        studentService.batchDelete(studentIds);
-        attributes.addFlashAttribute("msg", "批量删除成功！");
+        for (String studentId : studentIds) {
+            // 删除关联记录
+            attendanceRecordRepository.deleteAll(attendanceRecordRepository.findByStudentId(studentId));
+            leaveApplicationRepository.deleteAll(leaveApplicationRepository.findByStudentIdOrderByApplyTimeDesc(studentId));
+            // 删除 student
+            studentService.deleteById(studentId);
+            // 删除对应的 user
+            User user = userRepository.findByUsername(studentId);
+            if (user != null) {
+                userRepository.delete(user);
+            }
+        }
+        attributes.addFlashAttribute("msg", "批量删除成功！已同步删除登录账号。");
         attributes.addFlashAttribute("type", "success");
         return "redirect:/students";
     }
@@ -168,7 +186,6 @@ public class StudentController {
         return "student-import";
     }
 
-    // 批量导入处理
     @PostMapping("/import")
     public String importStudents(@RequestParam("file") MultipartFile file, RedirectAttributes ra) {
         if (file.isEmpty()) {

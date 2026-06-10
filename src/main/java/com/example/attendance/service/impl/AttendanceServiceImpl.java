@@ -29,7 +29,6 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     @Transactional
     public AttendanceRecord checkIn(String studentId, String studentName, Long courseId, String courseName, String remark) {
-        // ... 原有打卡逻辑（时间窗口、重复判断等）...
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
         LocalTime nowTime = now.toLocalTime();
@@ -38,15 +37,26 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (hasCheckIn) {
             throw new RuntimeException("❌ 今日该课程已打卡！");
         }
+
         Course course = courseService.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("❌ 课程不存在"));
+                .orElseThrow(() -> new RuntimeException("❌ 课程不存在，请联系老师设置上课时间！"));
         LocalTime startTime = course.getStartTime();
+        LocalTime endTime = course.getEndTime();
+        if (endTime == null) {
+            endTime = startTime.plusHours(2);
+        }
+
         LocalTime allowStart = startTime.minusMinutes(15);
         LocalTime allowEnd = startTime.plusMinutes(30);
-        if (nowTime.isBefore(allowStart) || nowTime.isAfter(allowEnd)) {
-            throw new RuntimeException("❌ 不在打卡时间内（" + allowStart + " - " + allowEnd + "）！");
+
+        if (nowTime.isBefore(allowStart)) {
+            throw new RuntimeException("❌ 打卡未开始，允许打卡时间：" + allowStart + " 之后");
         }
-        String status = nowTime.isAfter(startTime) ? "迟到" : "正常";
+        if (nowTime.isAfter(endTime)) {
+            throw new RuntimeException("❌ 课程已结束，无法打卡");
+        }
+
+        String status = nowTime.isAfter(allowEnd) ? "迟到" : "正常";
 
         AttendanceRecord record = new AttendanceRecord();
         record.setStudentId(studentId);
@@ -59,14 +69,15 @@ public class AttendanceServiceImpl implements AttendanceService {
         record.setRemark(remark);
 
         AttendanceRecord savedRecord = attendanceRecordRepository.save(record);
-        // 更新学生考勤次数
+
         Student student = studentRepository.findByStudentId(studentId);
         if (student != null) {
-            Integer count = student.getAttendanceCount();
-            if (count == null) count = 0;
-            student.setAttendanceCount(count + 1);
+            Integer currentCount = student.getAttendanceCount();
+            if (currentCount == null) currentCount = 0;
+            student.setAttendanceCount(currentCount + 1);
             studentRepository.save(student);
         }
+
         return savedRecord;
     }
 
@@ -127,10 +138,10 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public List<AttendanceRecord> findByCourseName(String courseName) {
-        if (courseName == null || courseName.trim().isEmpty()) {
+        if (courseName == null || courseName.isEmpty()) {
             return attendanceRecordRepository.findAll();
         }
-        return attendanceRecordRepository.findByCourseName(courseName.trim());
+        return attendanceRecordRepository.findByCourseName(courseName);
     }
 
     @Override
@@ -139,5 +150,14 @@ public class AttendanceServiceImpl implements AttendanceService {
         AttendanceRecord record = attendanceRecordRepository.findById(recordId)
                 .orElseThrow(() -> new RuntimeException("考勤记录不存在"));
         attendanceRecordRepository.delete(record);
+    }
+
+    @Override
+    @Transactional
+    public void batchDeleteAttendanceRecords(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        attendanceRecordRepository.deleteAllById(ids);
     }
 }
