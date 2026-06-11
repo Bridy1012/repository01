@@ -34,15 +34,19 @@ public class UserController {
 
     @PostMapping("/register")
     public String register(@RequestParam String username,
-                           @RequestParam String password,
                            @RequestParam String name,
+                           @RequestParam String password,
+                           @RequestParam(required = false) String className,
+                           @RequestParam(required = false) String phone,
                            RedirectAttributes redirectAttributes) {
         try {
+            // 检查用户名是否已存在
             if (userRepository.findByUsername(username) != null) {
-                redirectAttributes.addFlashAttribute("errorMsg", "该账号已注册！");
+                redirectAttributes.addFlashAttribute("errorMsg", "该学号已注册！");
                 return "redirect:/register";
             }
 
+            // 创建 User 账号
             User user = new User();
             user.setUsername(username);
             user.setPassword(passwordEncoder.encode(password));
@@ -50,11 +54,13 @@ public class UserController {
             user.setName(name);
             userRepository.save(user);
 
+            // 创建 Student 记录（同步姓名、班级、电话）
             Student student = new Student();
             student.setStudentId(username);
             student.setName(name);
+            student.setClassName(className != null ? className : "未分班");
+            student.setPhone(phone != null ? phone : "");
             student.setAttendanceCount(0);
-            student.setClassName("未分班");
             studentRepository.save(student);
 
             redirectAttributes.addFlashAttribute("msg", "注册成功！请登录");
