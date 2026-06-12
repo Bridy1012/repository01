@@ -9,6 +9,7 @@ import com.example.attendance.repository.UserRepository;
 import com.example.attendance.service.AttendanceService;
 import com.example.attendance.service.CourseService;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -34,8 +35,9 @@ public class AttendanceController {
     @Autowired
     private CourseService courseService;
 
+    // 学生打卡页面（支持扫码自动选中课程）
     @GetMapping("/attendance")
-    public String toAttendancePage(Model model, Principal principal) {
+    public String toAttendancePage(Model model, Principal principal, HttpSession session) {
         String studentId = principal.getName();
         Student student = studentRepository.findByStudentId(studentId);
         if (student == null) {
@@ -49,9 +51,17 @@ public class AttendanceController {
         List<Course> courses = courseService.findAll();
         model.addAttribute("student", student);
         model.addAttribute("courses", courses);
+
+        // 从 session 中取出扫码带来的课程 ID（一次性使用）
+        Long scanCourseId = (Long) session.getAttribute("scanCourseId");
+        if (scanCourseId != null) {
+            model.addAttribute("preSelectedCourseId", scanCourseId);
+            session.removeAttribute("scanCourseId");
+        }
         return "attendance";
     }
 
+    // 打卡提交
     @PostMapping("/attendance/checkin")
     public String checkIn(
             @RequestParam Long courseId,
@@ -81,6 +91,7 @@ public class AttendanceController {
         return "attendance";
     }
 
+    // 早退
     @PostMapping("/attendance/checkout")
     public String checkOut(
             @RequestParam String courseName,
@@ -100,6 +111,7 @@ public class AttendanceController {
         return "attendance";
     }
 
+    // 考勤列表（教师/学生共用）
     @GetMapping("/attendance/list")
     public String attendanceList(
             @RequestParam(required = false) String courseName,
@@ -128,6 +140,7 @@ public class AttendanceController {
         return "attendance-list";
     }
 
+    // 导出 Excel
     @GetMapping("/attendance/export")
     public void exportAttendance(
             @RequestParam(required = false) String courseName,

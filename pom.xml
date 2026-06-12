@@ -42,6 +42,18 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- ZXing 二维码生成 -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
         <!-- Spring Security 核心依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

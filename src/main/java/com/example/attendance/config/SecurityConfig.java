@@ -6,6 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +15,7 @@ import org.springframework.security.web.authentication.SavedRequestAwareAuthenti
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 
 @Configuration
@@ -41,8 +43,19 @@ public class SecurityConfig {
         return new SavedRequestAwareAuthenticationSuccessHandler() {
             @Override
             public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                                org.springframework.security.core.Authentication authentication)
-                    throws ServletException, IOException {
+                                                Authentication authentication) throws ServletException, IOException {
+                // 获取登录请求中携带的 courseId 参数
+                String courseIdParam = request.getParameter("courseId");
+                if (courseIdParam != null && !courseIdParam.isEmpty()) {
+                    try {
+                        Long courseId = Long.valueOf(courseIdParam);
+                        HttpSession session = request.getSession();
+                        session.setAttribute("scanCourseId", courseId);
+                    } catch (NumberFormatException e) {
+                        // 忽略无效ID
+                    }
+                }
+
                 String role = authentication.getAuthorities().iterator().next().getAuthority();
                 if ("teacher".equals(role)) {
                     getRedirectStrategy().sendRedirect(request, response, "/students");
@@ -60,18 +73,13 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // 公共资源
-                        .requestMatchers("/login", "/register", "/css/**", "/js/**").permitAll()
-                        // 教师专属
+                        .requestMatchers("/login", "/register", "/css/**", "/js/**", "/scan/**").permitAll()
                         .requestMatchers("/students/**").hasAuthority("teacher")
                         .requestMatchers("/courses/**").hasAuthority("teacher")
-                        .requestMatchers("/attendance/list", "/attendance/export", "/attendance/delete/**").hasAuthority("teacher")
-                        // 学生专属
+                        .requestMatchers("/attendance/list", "/attendance/export", "/attendance/delete/**", "/attendance/batchDelete").hasAuthority("teacher")
                         .requestMatchers("/attendance", "/attendance/checkin", "/attendance/checkout").hasAuthority("student")
-                        .requestMatchers("/leave/apply", "/leave/my").hasAuthority("student")
-                        // 共享（学生也可查看个人记录）
                         .requestMatchers("/attendance/list").hasAnyAuthority("student", "teacher")
-                        // 教师审批请假
+                        .requestMatchers("/leave/apply", "/leave/my").hasAuthority("student")
                         .requestMatchers("/leave/pending", "/leave/approve", "/leave/reject").hasAuthority("teacher")
                         .anyRequest().authenticated()
                 )
